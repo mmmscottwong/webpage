@@ -2,6 +2,9 @@ gsap.registerPlugin(ScrollTrigger);
 
 const video = document.getElementById('hero-video');
 const scrollHint = document.getElementById('scroll-hint');
+const isMobile =
+  (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) ||
+  (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 
 // ─── NAV background on scroll ──────────────────────────────────────
 window.addEventListener('scroll', () => {
@@ -17,20 +20,7 @@ window.addEventListener('scroll', () => {
 }, { passive: true, once: true });
 
 // ─── VIDEO SCRUB ───────────────────────────────────────────────────
-function initVideoScrub() {
-  // currentTime scrub — driven by scroll position
-  ScrollTrigger.create({
-    trigger: '#video-section',
-    start: 'top top',
-    end: 'bottom bottom',
-    scrub: 0.5,
-    onUpdate: self => {
-      if (video.readyState >= 2 && video.duration) {
-        video.currentTime = self.progress * video.duration;
-      }
-    }
-  });
-
+function initOverlayTimeline() {
   // ─── Text overlay timeline (synced to same scroll range) ──────────
   const tl = gsap.timeline({
     scrollTrigger: {
@@ -58,8 +48,65 @@ function initVideoScrub() {
     .to('.vid-text-3', { opacity: 0, duration: 0.04 }, 0.97);
 }
 
+function ensureMobileVideoPlayback() {
+  if (!video) return;
+
+  // Mobile browsers (esp. iOS Safari) can block programmatic playback/seeking
+  // until user interaction; provide a simple autoplay fallback.
+  video.muted = true;
+  video.playsInline = true;
+  video.autoplay = true;
+  video.loop = true;
+  video.setAttribute('muted', '');
+  video.setAttribute('playsinline', '');
+  video.setAttribute('autoplay', '');
+  video.setAttribute('loop', '');
+
+  const tryPlay = () => {
+    try {
+      const p = video.play();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch (_) {}
+  };
+
+  // Try to show a frame ASAP (some mobile browsers stay black without a seek)
+  video.addEventListener('loadedmetadata', () => {
+    try {
+      video.currentTime = Math.min(0.01, video.duration || 0.01);
+    } catch (_) {}
+  }, { once: true });
+
+  video.addEventListener('canplay', tryPlay, { once: true });
+  window.addEventListener('touchstart', tryPlay, { once: true, passive: true });
+  window.addEventListener('click', tryPlay, { once: true, passive: true });
+
+  try {
+    video.load();
+  } catch (_) {}
+}
+
+function initVideoScrub() {
+  // currentTime scrub — driven by scroll position
+  ScrollTrigger.create({
+    trigger: '#video-section',
+    start: 'top top',
+    end: 'bottom bottom',
+    scrub: 0.5,
+    onUpdate: self => {
+      if (video.readyState >= 2 && video.duration) {
+        video.currentTime = self.progress * video.duration;
+      }
+    }
+  });
+
+  initOverlayTimeline();
+}
+
 // Init after metadata loads (needed to know video.duration)
-if (video.readyState >= 1) {
+if (isMobile) {
+  ensureMobileVideoPlayback();
+  initOverlayTimeline();
+} else if (video.readyState >= 1) {
   initVideoScrub();
 } else {
   video.addEventListener('loadedmetadata', initVideoScrub, { once: true });
