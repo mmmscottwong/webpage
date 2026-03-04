@@ -1,0 +1,26 @@
+# Environment and secrets (use .env for local overrides; never commit secrets)
+.env
+
+# Google OAuth
+credentials.json
+token.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
